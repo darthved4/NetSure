@@ -16,4 +16,4 @@ local.properties
 # OS files
 .DS_Store
 Thumbs.db
-.idea/
+.idea
