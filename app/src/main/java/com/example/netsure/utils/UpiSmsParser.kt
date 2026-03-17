@@ -24,7 +24,17 @@ object UpiSmsParser {
     )
 
     // --- Account / target patterns ---
-    private val accountPatterns = listOf(Regex("""[Aa]/[Cc]\s*(?:XX|X)?(\d{4})"""))
+    private val accountPatterns = listOf(
+
+        // 1️ Merchant name (BEST match)
+        Regex("""credited to\s+([A-Za-z0-9\s]+?)\s+via UPI""", RegexOption.IGNORE_CASE),
+
+        // 2️ Fallback: UPI ID (if present)
+        Regex("""([a-zA-Z0-9.\-_]+@[a-zA-Z]+)"""),
+
+        // 3️ Last fallback: account number
+        Regex("""[Aa]/[Cc]\s*(?:XX|X)?(\d{4})""")
+    )
 
     // --- Date patterns ---
     private val datePatterns = listOf(

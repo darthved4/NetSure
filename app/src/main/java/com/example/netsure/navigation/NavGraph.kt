@@ -39,7 +39,7 @@ fun AppNavHost(
 
     NavHost(
         navController = navController,
-        startDestination = Routes.HOME,
+        startDestination =  Routes.HOME,
         modifier = modifier
     ) {
         composable(Routes.HOME) {
@@ -70,5 +70,10 @@ fun AppNavHost(
             )
         }
     }
+}
+
+@Composable
+fun ShowTestResult() {
+    TODO("Not yet implemented")
 }
 
