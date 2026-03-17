@@ -55,6 +55,9 @@ goto fail
 
 :findJavaFromJavaHome
 set JAVA_HOME=%JAVA_HOME:"=%
+@rem Some environments incorrectly set JAVA_HOME to the JDK's \bin directory.
+@rem Normalize it to the JDK root so %JAVA_HOME%\bin\java.exe resolves correctly.
+if /I "%JAVA_HOME:~-4%"=="\bin" set JAVA_HOME=%JAVA_HOME:~0,-4%
 set JAVA_EXE=%JAVA_HOME%/bin/java.exe
 
 if exist "%JAVA_EXE%" goto execute
