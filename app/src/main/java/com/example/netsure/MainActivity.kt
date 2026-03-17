@@ -9,6 +9,7 @@ import androidx.compose.ui.Modifier
 import com.example.netsure.navigation.AppNavHost
 import com.example.netsure.security.SecureActivity
 import com.example.netsure.ui.theme.NetSureTheme
+import androidx.compose.ui.graphics.Color
 
 class MainActivity : SecureActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -17,7 +18,8 @@ class MainActivity : SecureActivity() {
         setContent {
             NetSureTheme {
                 Surface(
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier.fillMaxSize(),
+                    color = Color.Black
                 ) {
                     AppNavHost()
                 }

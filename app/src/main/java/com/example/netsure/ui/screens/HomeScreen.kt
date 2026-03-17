@@ -1,165 +1,217 @@
 package com.example.netsure.ui.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.netsure.viewmodel.NetworkViewModel
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.clickable
 
-/**
- * Home screen of the prototype:
- *  - Shows basic app title and description
- *  - Hosts the "Scan QR" button
- *  - Displays the [NetworkAnalyzerWidget] with live network information
- */
 @Composable
 fun HomeScreen(
     networkViewModel: NetworkViewModel,
     onScanClick: () -> Unit,
+    onTransactionHistoryClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val networkState by networkViewModel.uiState.collectAsStateWithLifecycle()
+    val isStable = networkState.qualityScore >= 40
+    val statusText = if (isStable) "Stable" else "Unstable"
+    val statusColor = if (isStable) Color.Green else Color.Red
 
     Column(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(24.dp, Alignment.Top),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = "NetSure UPI Offline",
-            style = MaterialTheme.typography.headlineMedium
-        )
-
-        Text(
-            text = "Prototype app to demonstrate offline UPI payments using the *99# USSD flow.",
-            style = MaterialTheme.typography.bodyMedium
-        )
-
-        Button(
-            onClick = onScanClick,
-            modifier = Modifier
-                .fillMaxWidth(),
-            contentPadding = PaddingValues(vertical = 12.dp)
-        ) {
-            Text(text = "Scan QR")
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        NetworkAnalyzerWidget(
-            typeLabel = networkState.typeLabel,
-            signalLevel = networkState.signalLevel,
-            qualityScore = networkState.qualityScore,
-            modifier = Modifier.fillMaxWidth()
-        )
-    }
-}
-
-/**
- * Stateless widget that visualizes basic network information such as:
- *  - current network type (Wi‑Fi / Cellular / Offline)
- *  - an approximate signal level bar
- *  - a simple numeric quality score
- */
-
-
-@Composable
-fun NetworkAnalyzerWidget(
-    typeLabel: String,
-    signalLevel: Int,
-    qualityScore: Int,
-    modifier: Modifier = Modifier
-) {
-    // Decide status based on quality
-    val isStable = qualityScore >= 40
-
-    val statusText = if (isStable) "Stable" else "Unstable"
-
-    val statusColor = if (isStable) {
-        androidx.compose.ui.graphics.Color(0xFF4CAF50) // Green
-    } else {
-        androidx.compose.ui.graphics.Color(0xFFEA1F10) // Red
-    }
-
-    androidx.compose.foundation.layout.Row(
-        modifier = modifier
-            .padding(horizontal = 16.dp)
-            .background(
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                shape = RoundedCornerShape(50) // pill shape
-            )
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center
+            .background(Color.Black)
+            .padding(12.dp)
     ) {
 
-        // Status Dot
-        androidx.compose.foundation.layout.Box(
-            modifier = Modifier
-                .size(10.dp)
-                .background(
-                    color = statusColor,
-                    shape = RoundedCornerShape(50)
-                )
-        )
+        // 🔥 TOP SPACE
+        Spacer(modifier = Modifier.weight(0.15f))
 
-        Spacer(modifier = Modifier.width(8.dp))
+        Column {
 
-        // Text
-        Text(
-            text = "Network: $statusText",
-            style = MaterialTheme.typography.bodyMedium
-        )
-    }
-}
-@Composable
-private fun SignalBarRow(level: Int) {
-    val clamped = level.coerceIn(0, 4)
-    androidx.compose.foundation.layout.Row(
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        repeat(5) { index ->
-            val isActive = index <= clamped
-            androidx.compose.foundation.layout.Box(
+            // 🔷 TOP CARD
+            Box(
                 modifier = Modifier
-                    .height(((index + 1) * 6).dp)
-                    .weight(1f)
-                    .padding(vertical = 2.dp)
-                    .then(
-                        Modifier
-                            .fillMaxWidth()
-                            .background(
-                                color = if (isActive) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
-                                },
-                                shape = RoundedCornerShape(2.dp)
-                            )
+                    .fillMaxWidth()
+                    .border(1.dp, Color.White)
+                    .padding(16.dp)
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+
+                    Text(
+                        text = "NETSURE",
+                        color = Color.White,
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold
+                        )
                     )
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Text(
+                        text = "When network fails, payments dont.",
+                        color = Color.LightGray,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier
+                            .background(Color.LightGray, RoundedCornerShape(50))
+                            .padding(horizontal = 16.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .background(statusColor, CircleShape)
+                        )
+
+                        Spacer(modifier = Modifier.width(6.dp))
+
+                        Text(
+                            text = "Network : $statusText",
+                            color = Color.Black,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 🔷 MAIN MENU
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, Color.White)
+            ) {
+                SectionHeader("MAIN MENU")
+
+                MenuItem("1. Send Money") { onScanClick() }
+                MenuItem("2. Receive Money") {}
+                MenuItem("3. Check Balance") {}
+                MenuItem("4. Transaction History") {
+                    onTransactionHistoryClick()
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 🔷 BANK DETAILS
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, Color.White)
+            ) {
+                SectionHeader("BANK DETAILS")
+
+                Column(modifier = Modifier.padding(8.dp)) {
+
+                    BankDetailRow("BANK NAME:", "Bank of India")
+                    BankDetailRow("ACCOUNT NO:", "**** **** 9378")
+                    BankDetailRow("AVAILABLE BALANCE :", "₹ **,***.**")
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, Color.White)
+                            .padding(12.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "[CHECK BALANCE]",
+                            color = Color.White
+                        )
+                    }
+                }
+            }
+        }
+
+        // 🔥 BOTTOM SPACE
+        Spacer(modifier = Modifier.weight(0.15f))
+    }
+}
+
+@Composable
+fun SectionHeader(title: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.LightGray)
+            .padding(8.dp)
+    ) {
+        Text(
+            text = title,
+            color = Color.Black,
+            style = MaterialTheme.typography.bodyMedium.copy(
+                fontWeight = FontWeight.Bold
+            )
+        )
+    }
+}
+
+@Composable
+fun MenuItem(text: String, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp)
+            .border(1.dp, Color.White)
+            .clickable { onClick() }
+            .padding(12.dp)
+    ) {
+        Text(
+            text = text,
+            color = Color.White,
+            style = MaterialTheme.typography.bodyMedium.copy(
+                fontWeight = FontWeight.Bold
+            )
+        )
+    }
+}
+
+@Composable
+fun BankDetailRow(label: String, value: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp)
+    ) {
+        Column {
+            Text(
+                text = label,
+                color = Color.Gray,
+                style = MaterialTheme.typography.bodySmall.copy(
+                    fontWeight = FontWeight.Bold
+                )
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = value,
+                color = Color.White
             )
         }
     }
 }
-

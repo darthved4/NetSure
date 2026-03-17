@@ -12,6 +12,7 @@ import com.example.netsure.ui.screens.HomeScreen
 import com.example.netsure.ui.screens.QRScannerScreen
 import com.example.netsure.viewmodel.NetworkViewModel
 import com.example.netsure.viewmodel.PaymentViewModel
+import com.example.netsure.ui.screens.TransactionHistoryScreen
 
 /**
  * Central navigation graph for the prototype.
@@ -26,6 +27,8 @@ object Routes {
     const val HOME = "home"
     const val QR_SCANNER = "qrScanner"
     const val CONFIRM_PAYMENT = "confirmPayment"
+
+    const val TRANSACTION_HISTORY = "transaction_history"
 }
 
 @Composable
@@ -39,14 +42,24 @@ fun AppNavHost(
 
     NavHost(
         navController = navController,
-        startDestination =  Routes.HOME,
+        startDestination = Routes.HOME,
         modifier = modifier
     ) {
         composable(Routes.HOME) {
             HomeScreen(
                 networkViewModel = networkViewModel,
-                onScanClick = { navController.navigate(Routes.QR_SCANNER) }
+                onScanClick = {
+                    navController.navigate(Routes.QR_SCANNER)
+                },
+                onTransactionHistoryClick = {
+                    navController.navigate(Routes.TRANSACTION_HISTORY)
+                }
             )
+        }
+
+        // 👇 ADD THIS HERE
+        composable(Routes.TRANSACTION_HISTORY) {
+            TransactionHistoryScreen()
         }
 
         composable(Routes.QR_SCANNER) {
@@ -70,10 +83,5 @@ fun AppNavHost(
             )
         }
     }
-}
-
-@Composable
-fun ShowTestResult() {
-    TODO("Not yet implemented")
 }
 
