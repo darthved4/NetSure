@@ -35,6 +35,9 @@ sealed class PaymentStatus {
  * ViewModel responsible for storing the scanned UPI ID,
  * coordinating the USSD payment trigger, and managing the
  * 90-second SMS detection window.
+ *
+ * Uses [Application.getApplicationContext] (safe in AndroidViewModel)
+ * so that cleanup can happen from any call-site without a UI Context.
  */
 class PaymentViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -46,6 +49,12 @@ class PaymentViewModel(application: Application) : AndroidViewModel(application)
     private val ussdCaller = UssdCaller()
     private val dbHelper = TransactionDbHelper(application)
 
+    /**
+     * Application context stored once — this is SAFE in AndroidViewModel
+     * because it outlives all Activities and never leaks.
+     */
+    private val appContext: Context = application.applicationContext
+
     // --- UPI ID from QR scan ---
     private val _upiId = MutableStateFlow<String?>(null)
     val upiId: StateFlow<String?> = _upiId.asStateFlow()
@@ -54,10 +63,10 @@ class PaymentViewModel(application: Application) : AndroidViewModel(application)
     private val _paymentStatus = MutableStateFlow<PaymentStatus>(PaymentStatus.Idle)
     val paymentStatus: StateFlow<PaymentStatus> = _paymentStatus.asStateFlow()
 
-    // Internal state
-    private var smsReceiver: SmsReceiver? = null
-    private var countdownJob: Job? = null
-    private var scanStartTimestamp: Long = 0L
+    // Internal state — guarded by @Volatile for thread-safety with BroadcastReceiver callbacks
+    @Volatile private var smsReceiver: SmsReceiver? = null
+    @Volatile private var countdownJob: Job? = null
+    @Volatile private var scanStartTimestamp: Long = 0L
 
     /**
      * Called by the QR scanner once a valid UPI ID has been extracted.
@@ -77,28 +86,28 @@ class PaymentViewModel(application: Application) : AndroidViewModel(application)
         val started = ussdCaller.callUssd(context, "*99#")
         Log.d(TAG, "USSD call started=$started")
         if (started) {
-            startSmsDetection(context)
+            startSmsDetection()
         }
         return started
     }
 
-    // ------------------------------------------------------------------ //
+    // ================================================================== //
     //  SMS Detection Window
-    // ------------------------------------------------------------------ //
+    // ================================================================== //
 
-    private fun startSmsDetection(context: Context) {
-        // Prevent duplicate detection windows
-        if (_paymentStatus.value is PaymentStatus.Detecting) {
-            Log.w(TAG, "startSmsDetection() skipped — already detecting")
-            return
-        }
+    private fun startSmsDetection() {
+        // *** ALWAYS clean up first — this is the key fix ***
+        Log.d(TAG, "startSmsDetection() — cleaning up any previous session first")
+        cleanupDetection()
 
         scanStartTimestamp = System.currentTimeMillis()
         _paymentStatus.value = PaymentStatus.Detecting(DETECTION_WINDOW_SECONDS)
         Log.d(TAG, "=== SMS DETECTION STARTED at $scanStartTimestamp ===")
 
         // 1. Register a dynamic BroadcastReceiver
-        smsReceiver = SmsReceiver { smsBody -> onSmsBodyReceived(smsBody, context) }
+        val receiver = SmsReceiver { smsBody -> onSmsBodyReceived(smsBody) }
+        smsReceiver = receiver
+
         val filter = IntentFilter(Telephony.Sms.Intents.SMS_RECEIVED_ACTION).apply {
             priority = IntentFilter.SYSTEM_HIGH_PRIORITY
         }
@@ -106,16 +115,16 @@ class PaymentViewModel(application: Application) : AndroidViewModel(application)
         // CRITICAL: SMS_RECEIVED_ACTION is a system broadcast, so on Android 13+ we
         // MUST use RECEIVER_EXPORTED, otherwise the OS silently blocks delivery.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.registerReceiver(smsReceiver, filter, Context.RECEIVER_EXPORTED)
+            appContext.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED)
             Log.d(TAG, "Receiver registered with RECEIVER_EXPORTED (API ${Build.VERSION.SDK_INT})")
         } else {
-            context.registerReceiver(smsReceiver, filter)
+            appContext.registerReceiver(receiver, filter)
             Log.d(TAG, "Receiver registered (pre-Tiramisu, API ${Build.VERSION.SDK_INT})")
         }
 
         // Visual confirmation
         try {
-            Toast.makeText(context, "SMS listener active (90s)", Toast.LENGTH_SHORT).show()
+            Toast.makeText(appContext, "SMS listener active (90s)", Toast.LENGTH_SHORT).show()
         } catch (_: Exception) {}
 
         // 2. Start countdown coroutine
@@ -136,15 +145,17 @@ class PaymentViewModel(application: Application) : AndroidViewModel(application)
             Log.d(TAG, "=== 90-SECOND WINDOW EXPIRED ===")
             if (_paymentStatus.value !is PaymentStatus.Success) {
                 _paymentStatus.value = PaymentStatus.Failure
+                cleanupDetection()
             }
-            stopSmsDetection(context)
         }
+
+        Log.d(TAG, "countdownJob launched: ${countdownJob?.hashCode()}")
     }
 
     /**
      * Called by [SmsReceiver] on every incoming SMS during the window.
      */
-    private fun onSmsBodyReceived(body: String, context: Context) {
+    private fun onSmsBodyReceived(body: String) {
         Log.d(TAG, "onSmsBodyReceived() — body length=${body.length}")
         Log.d(TAG, "SMS body: \"$body\"")
 
@@ -178,41 +189,62 @@ class PaymentViewModel(application: Application) : AndroidViewModel(application)
         Log.d(TAG, "Transaction saved to DB with rowId=$rowId")
 
         _paymentStatus.value = PaymentStatus.Success(txn)
-        stopSmsDetection(context)
+        cleanupDetection()
 
         try {
-            Toast.makeText(context, "✅ Transaction detected!", Toast.LENGTH_LONG).show()
+            Toast.makeText(appContext, "✅ Transaction detected!", Toast.LENGTH_LONG).show()
         } catch (_: Exception) {}
     }
 
-    private fun stopSmsDetection(context: Context) {
-        Log.d(TAG, "stopSmsDetection() — cleaning up")
+    // ================================================================== //
+    //  Cleanup — THE single source of truth for tearing down detection
+    // ================================================================== //
+
+    /**
+     * Cancels the countdown coroutine, unregisters the SMS receiver, and
+     * nulls out all references. Safe to call multiple times or from any thread.
+     */
+    private fun cleanupDetection() {
+        Log.d(TAG, "cleanupDetection() — job=${countdownJob?.hashCode()}, receiver=${smsReceiver?.hashCode()}")
+
+        // 1. Cancel coroutine
         countdownJob?.cancel()
         countdownJob = null
-        try {
-            smsReceiver?.let {
-                context.unregisterReceiver(it)
-                Log.d(TAG, "Receiver unregistered successfully")
-            }
-        } catch (e: Exception) {
-            Log.w(TAG, "Receiver unregister failed: ${e.message}")
-        }
+        Log.d(TAG, "  countdownJob cancelled and nulled")
+
+        // 2. Unregister receiver
+        val receiver = smsReceiver
         smsReceiver = null
+        if (receiver != null) {
+            try {
+                appContext.unregisterReceiver(receiver)
+                Log.d(TAG, "  Receiver unregistered successfully")
+            } catch (e: IllegalArgumentException) {
+                Log.w(TAG, "  Receiver was already unregistered: ${e.message}")
+            }
+        } else {
+            Log.d(TAG, "  No receiver to unregister")
+        }
+
+        // 3. Reset timestamp
+        scanStartTimestamp = 0L
+        Log.d(TAG, "cleanupDetection() — DONE")
     }
 
     /**
-     * Call from the UI to reset back to Idle so the user can try again.
+     * Resets the ViewModel to Idle state and cleans up all running processes.
+     * Called by the UI when: leaving screen, pressing "Try Again", pressing "Cancel".
      */
     fun resetPaymentStatus() {
+        Log.d(TAG, "resetPaymentStatus() — current status: ${_paymentStatus.value}")
+        cleanupDetection()
         _paymentStatus.value = PaymentStatus.Idle
-        Log.d(TAG, "Payment status reset to Idle")
+        Log.d(TAG, "Payment status reset to Idle — all processes stopped")
     }
 
     override fun onCleared() {
         super.onCleared()
-        Log.d(TAG, "PaymentViewModel.onCleared()")
-        countdownJob?.cancel()
-        // Cannot unregister here because we need a Context; the DisposableEffect
-        // in the composable handles cleanup.
+        Log.d(TAG, "PaymentViewModel.onCleared() — final cleanup")
+        cleanupDetection()
     }
 }

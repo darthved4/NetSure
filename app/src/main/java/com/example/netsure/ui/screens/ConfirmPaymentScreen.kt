@@ -210,7 +210,7 @@ fun ConfirmPaymentScreen(
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text(
-                                "Transaction might have failed. Please try again.",
+                                "Transaction might have failed. Please wait for confirmation before trying again.",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onErrorContainer
                             )
