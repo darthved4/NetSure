@@ -131,6 +131,7 @@ fun QRScannerScreen(
     }
 }
 
+@androidx.annotation.OptIn(ExperimentalGetImage::class)
 @OptIn(ExperimentalGetImage::class)
 private fun buildAnalysisUseCase(
     onUpiDetected: (String) -> Unit

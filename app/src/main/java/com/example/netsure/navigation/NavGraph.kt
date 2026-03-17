@@ -12,6 +12,7 @@ import com.example.netsure.ui.screens.HomeScreen
 import com.example.netsure.ui.screens.QRScannerScreen
 import com.example.netsure.viewmodel.NetworkViewModel
 import com.example.netsure.viewmodel.PaymentViewModel
+import com.example.netsure.ui.screens.TransactionHistoryScreen
 
 /**
  * Central navigation graph for the prototype.
@@ -26,6 +27,8 @@ object Routes {
     const val HOME = "home"
     const val QR_SCANNER = "qrScanner"
     const val CONFIRM_PAYMENT = "confirmPayment"
+
+    const val TRANSACTION_HISTORY = "transaction_history"
 }
 
 @Composable
@@ -45,8 +48,18 @@ fun AppNavHost(
         composable(Routes.HOME) {
             HomeScreen(
                 networkViewModel = networkViewModel,
-                onScanClick = { navController.navigate(Routes.QR_SCANNER) }
+                onScanClick = {
+                    navController.navigate(Routes.QR_SCANNER)
+                },
+                onTransactionHistoryClick = {
+                    navController.navigate(Routes.TRANSACTION_HISTORY)
+                }
             )
+        }
+
+        // 👇 ADD THIS HERE
+        composable(Routes.TRANSACTION_HISTORY) {
+            TransactionHistoryScreen()
         }
 
         composable(Routes.QR_SCANNER) {
@@ -54,7 +67,6 @@ fun AppNavHost(
                 paymentViewModel = paymentViewModel,
                 onBack = { navController.popBackStack() },
                 onUpiDetected = { upiId ->
-                    // Store in ViewModel and navigate to confirm screen.
                     paymentViewModel.onUpiScanned(upiId)
                     navController.navigate(Routes.CONFIRM_PAYMENT) {
                         popUpTo(Routes.HOME) { inclusive = false }
@@ -71,4 +83,3 @@ fun AppNavHost(
         }
     }
 }
-
