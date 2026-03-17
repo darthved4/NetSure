@@ -65,6 +65,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-process:2.8.7")
 
     // Kotlin coroutines for asynchronous work
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
@@ -78,6 +79,9 @@ dependencies {
 
     // ML Kit barcode scanning for UPI QR detection
     implementation("com.google.mlkit:barcode-scanning:17.3.0")
+
+    // Biometrics (fingerprint/face) + BiometricPrompt
+    implementation("androidx.biometric:biometric:1.1.0")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
