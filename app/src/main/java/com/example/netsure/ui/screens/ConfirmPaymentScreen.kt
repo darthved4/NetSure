@@ -1,6 +1,9 @@
 package com.example.netsure.ui.screens
 
 import android.Manifest
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -15,6 +18,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,6 +47,19 @@ fun ConfirmPaymentScreen(
     val upiId by paymentViewModel.upiId.collectAsStateWithLifecycleCompat()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+
+    // Prevent repeated clipboard writes on recomposition.
+    var lastCopiedUpiId by remember { mutableStateOf<String?>(null) }
+
+    // When we receive a valid UPI ID, copy it to clipboard automatically.
+    LaunchedEffect(upiId) {
+        val value = upiId
+        if (!value.isNullOrBlank() && value != lastCopiedUpiId) {
+            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            clipboard.setPrimaryClip(ClipData.newPlainText("UPI ID", value))
+            lastCopiedUpiId = value
+        }
+    }
 
     var hasCallPermission by remember {
         mutableStateOf(
