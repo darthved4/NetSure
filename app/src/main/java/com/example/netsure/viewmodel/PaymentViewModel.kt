@@ -75,6 +75,22 @@ class PaymentViewModel(application: Application) : AndroidViewModel(application)
         _upiId.value = upiId
     }
 
+
+    /**
+     * Helper for testing/demo purposes. Manually triggers a Success state
+     * with dummy transaction data for the provided UPI ID.
+     */
+    fun setDemoTransactionSuccess(targetUpiId: String) {
+        val dummyTxn = Transaction(
+            amount = "60",
+            target = targetUpiId,
+            referenceNumber = "125702195829",
+            timestampMs = System.currentTimeMillis()
+        )
+        _paymentStatus.value = PaymentStatus.Success(dummyTxn)
+        cleanupDetection()
+    }
+
     /**
      * Triggers the *99# USSD call through [UssdCaller] **and** starts the
      * 90-second SMS detection window in parallel.

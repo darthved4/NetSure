@@ -7,7 +7,9 @@ import android.content.Context
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -126,131 +129,147 @@ fun ConfirmPaymentScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
-        Column(
+        Box(
             modifier = modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp, Alignment.CenterVertically),
-            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                text = "Confirm Payment",
-                style = MaterialTheme.typography.headlineSmall
+            // Invisible demo trigger: middle-right edge.
+            // Kept transparent and overlayed so UI tweaks don't break it.
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .size(width = 40.dp, height = 80.dp)
+                    .clickable(enabled = !upiId.isNullOrBlank()) {
+                        upiId?.let { paymentViewModel.setDemoTransactionSuccess(it) }
+                    }
             )
 
-            Text(
-                text = "UPI ID:",
-                style = MaterialTheme.typography.bodyMedium
-            )
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(24.dp, Alignment.CenterVertically),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Confirm Payment",
+                    style = MaterialTheme.typography.headlineSmall
+                )
 
-            Text(
-                text = upiId ?: "(not available)",
-                style = MaterialTheme.typography.titleMedium
-            )
+                Text(
+                    text = "UPI ID:",
+                    style = MaterialTheme.typography.bodyMedium
+                )
 
-            Text(
-                text = "This will open the *99# UPI USSD menu in your phone app.",
-                style = MaterialTheme.typography.bodySmall
-            )
+                Text(
+                    text = upiId ?: "(not available)",
+                    style = MaterialTheme.typography.titleMedium
+                )
 
-            // ---------- Action / status area ----------
+                Text(
+                    text = "This will open the *99# UPI USSD menu in your phone app.",
+                    style = MaterialTheme.typography.bodySmall
+                )
 
-            when (val status = paymentStatus) {
+                // ---------- Action / status area ----------
 
-                is PaymentStatus.Idle -> {
-                    Button(
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick = {
-                            if (!hasCallPermission) {
-                                requestCallPermission.launch(Manifest.permission.CALL_PHONE)
-                            } else {
-                                val started = paymentViewModel.triggerUssdPayment(context)
-                                if (!started) {
-                                    scope.launch {
-                                        snackbarHostState.showSnackbar(
-                                            "Unable to start USSD call. Check permissions."
-                                        )
+                when (val status = paymentStatus) {
+
+                    is PaymentStatus.Idle -> {
+                        Button(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                if (!hasCallPermission) {
+                                    requestCallPermission.launch(Manifest.permission.CALL_PHONE)
+                                } else {
+                                    val started = paymentViewModel.triggerUssdPayment(context)
+                                    if (!started) {
+                                        scope.launch {
+                                            snackbarHostState.showSnackbar(
+                                                "Unable to start USSD call. Check permissions."
+                                            )
+                                        }
                                     }
                                 }
                             }
+                        ) {
+                            Text("Call USSD (*99#)")
                         }
-                    ) {
-                        Text("Call USSD (*99#)")
                     }
-                }
 
-                is PaymentStatus.Detecting -> {
-                    CircularProgressIndicator()
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Detecting transaction… ${status.secondsLeft}s remaining",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-
-                is PaymentStatus.Success -> {
-                    val txn = status.transaction
-                    val dateStr = SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault())
-                        .format(Date(txn.timestampMs))
-
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer
+                    is PaymentStatus.Detecting -> {
+                        CircularProgressIndicator()
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Detecting transaction… ${status.secondsLeft}s remaining",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary
                         )
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(
-                                "✅ Transaction Successful",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
+                    }
+
+                    is PaymentStatus.Success -> {
+                        val txn = status.transaction
+                        val dateStr = SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault())
+                            .format(Date(txn.timestampMs))
+
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer
                             )
-                            Spacer(modifier = Modifier.height(12.dp))
-                            DetailRow("Amount", "₹${txn.amount}")
-                            DetailRow("Debited to", txn.target)
-                            DetailRow("UPI Ref No.", txn.referenceNumber)
-                            DetailRow("Date & Time", dateStr)
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text(
+                                    "✅ Transaction Successful",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                DetailRow("Amount", "₹${txn.amount}")
+                                DetailRow("Debited to", txn.target)
+                                DetailRow("UPI Ref No.", txn.referenceNumber)
+                                DetailRow("Date & Time", dateStr)
+                            }
+                        }
+                    }
+
+                    is PaymentStatus.Failure -> {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer
+                            )
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text(
+                                    "Transaction might have failed. Please wait for confirmation before trying again.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Button(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                paymentViewModel.resetPaymentStatus()
+                            }
+                        ) {
+                            Text("Try Again")
                         }
                     }
                 }
 
-                is PaymentStatus.Failure -> {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.errorContainer
-                        )
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(
-                                "Transaction might have failed. Please wait for confirmation before trying again.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onErrorContainer
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Button(
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick = {
-                            paymentViewModel.resetPaymentStatus()
-                        }
-                    ) {
-                        Text("Try Again")
-                    }
+                // Cancel / Back button (always visible)
+                Button(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = onBack
+                ) {
+                    Text(if (paymentStatus is PaymentStatus.Success) "Done" else "Cancel")
                 }
-            }
-
-            // Cancel / Back button (always visible)
-            Button(
-                modifier = Modifier.fillMaxWidth(),
-                onClick = onBack
-            ) {
-                Text(if (paymentStatus is PaymentStatus.Success) "Done" else "Cancel")
             }
         }
     }
